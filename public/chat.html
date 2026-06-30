@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>나만의 AI 도우미</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #D6E4F0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .chat-container {
+      width: 100%;
+      max-width: 680px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 헤더 */
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      height: 56px;
+      background: #1E3A5F;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .chat-header .header-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #2563EB;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .chat-header .header-name {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* 메시지 영역 */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    /* 날짜 구분선 */
+    .date-sep {
+      align-self: center;
+      background: rgba(0,0,0,0.22);
+      color: #fff;
+      font-size: 0.72rem;
+      border-radius: 12px;
+      padding: 3px 12px;
+      margin: 10px 0;
+    }
+
+    /* 기억 배지 */
+    .memory-badge {
+      align-self: center;
+      background: rgba(37, 99, 235, 0.18);
+      color: #1E3A5F;
+      font-size: 0.72rem;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 3px 12px;
+      margin-bottom: 8px;
+    }
+
+    /* 메시지 행 */
+    .msg-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .msg-row.user-row {
+      justify-content: flex-end;
+    }
+
+    .msg-row.ai-row {
+      justify-content: flex-start;
+    }
+
+    /* 아바타 */
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #2563EB;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      align-self: flex-start;
+    }
+
+    .avatar-placeholder {
+      width: 36px;
+      flex-shrink: 0;
+    }
+
+    /* 버블 컬럼 */
+    .bubble-col {
+      display: flex;
+      flex-direction: column;
+      max-width: 68%;
+    }
+
+    .sender-name {
+      font-size: 0.75rem;
+      color: #1E3A5F;
+      font-weight: 600;
+      margin-bottom: 3px;
+      padding-left: 2px;
+    }
+
+    .bubble-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+    }
+
+    .user-row .bubble-row {
+      flex-direction: row-reverse;
+    }
+
+    /* 말풍선 */
+    .bubble {
+      padding: 9px 13px;
+      font-size: 0.93rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .bubble.user {
+      background: #2563EB;
+      color: #fff;
+      border-radius: 12px 12px 4px 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+
+    .bubble.assistant {
+      background: #fff;
+      color: #1a1a1a;
+      border-radius: 12px 12px 12px 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    .bubble.error {
+      background: #fee2e2;
+      color: #991b1b;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    /* 타임스탬프 */
+    .msg-time {
+      font-size: 0.68rem;
+      color: rgba(0,0,0,0.4);
+      flex-shrink: 0;
+      padding-bottom: 2px;
+    }
+
+    /* 같은 발신자 연속 메시지 간격 */
+    .msg-row.same-sender {
+      margin-top: 2px;
+    }
+
+    .msg-row.new-sender {
+      margin-top: 10px;
+    }
+
+    /* 3-dot 로딩 애니메이션 */
+    .dot-pulse {
+      display: inline-block;
+      letter-spacing: 4px;
+      color: #9ca3af;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* 입력 영역 */
+    .input-row {
+      display: flex;
+      align-items: flex-end;
+      padding: 10px 12px;
+      background: #EAF2FB;
+      border-top: 1px solid #BDD5EA;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #userInput {
+      flex: 1;
+      padding: 9px 14px;
+      border: 1px solid #BDD5EA;
+      border-radius: 20px;
+      font-size: 0.93rem;
+      outline: none;
+      resize: none;
+      line-height: 1.4;
+      max-height: 120px;
+      overflow-y: auto;
+      background: #fff;
+    }
+
+    #userInput:focus { border-color: #2563EB; }
+
+    #sendBtn {
+      width: 40px;
+      height: 40px;
+      background: #2563EB;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    #sendBtn:hover:not(:disabled) { background: #1d4ed8; }
+    #sendBtn:disabled { background: #93c5fd; cursor: not-allowed; }
+
+    #sendBtn svg { pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="header-avatar">🤖</div>
+      <span class="header-name">나만의 AI 도우미</span>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="memory-badge" id="memoryBadge">대화 기록 유지 중 · 0턴</div>
+    </div>
+
+    <div class="input-row">
+      <textarea id="userInput" rows="1" placeholder="메시지를 입력하세요..."></textarea>
+      <button id="sendBtn" aria-label="보내기">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const messagesEl = document.getElementById("messages");
+    const inputEl = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const memoryBadge = document.getElementById("memoryBadge");
+
+    const history = [
+      { role: "system", content: "당신은 친절한 AI 어시스턴트입니다. 한국어로 답변하세요." }
+    ];
+
+    let lastSender = null;
+    let lastMessageDate = null;
+    let turnCount = 0;
+
+    function formatTime(date) {
+      const h = date.getHours();
+      const m = date.getMinutes().toString().padStart(2, "0");
+      const period = h < 12 ? "오전" : "오후";
+      const hour = h % 12 || 12;
+      return `${period} ${hour}:${m}`;
+    }
+
+    function formatDate(date) {
+      return date.toLocaleDateString("ko-KR", {
+        year: "numeric", month: "long", day: "numeric", weekday: "long"
+      });
+    }
+
+    function addMessage(role, text) {
+      const now = new Date();
+      const todayStr = now.toDateString();
+
+      // 날짜 구분선
+      if (todayStr !== lastMessageDate) {
+        const sep = document.createElement("div");
+        sep.className = "date-sep";
+        sep.textContent = formatDate(now);
+        messagesEl.appendChild(sep);
+        lastMessageDate = todayStr;
+      }
+
+      const isNewCluster = lastSender !== role;
+      lastSender = role;
+
+      const row = document.createElement("div");
+      row.className = `msg-row ${role === "user" ? "user-row" : "ai-row"} ${isNewCluster ? "new-sender" : "same-sender"}`;
+
+      if (role === "assistant") {
+        // 아바타
+        if (isNewCluster) {
+          const avatar = document.createElement("div");
+          avatar.className = "avatar";
+          avatar.textContent = "🤖";
+          row.appendChild(avatar);
+        } else {
+          const ph = document.createElement("div");
+          ph.className = "avatar-placeholder";
+          row.appendChild(ph);
+        }
+
+        const col = document.createElement("div");
+        col.className = "bubble-col";
+
+        if (isNewCluster) {
+          const name = document.createElement("span");
+          name.className = "sender-name";
+          name.textContent = "AI 어시스턴트";
+          col.appendChild(name);
+        }
+
+        const bubbleRow = document.createElement("div");
+        bubbleRow.className = "bubble-row";
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble assistant";
+        bubble.textContent = text;
+        bubbleRow.appendChild(bubble);
+
+        const time = document.createElement("span");
+        time.className = "msg-time";
+        time.textContent = formatTime(now);
+        bubbleRow.appendChild(time);
+
+        col.appendChild(bubbleRow);
+        row.appendChild(col);
+
+      } else {
+        const bubbleRow = document.createElement("div");
+        bubbleRow.className = "bubble-row";
+
+        const time = document.createElement("span");
+        time.className = "msg-time";
+        time.textContent = formatTime(now);
+        bubbleRow.appendChild(time);
+
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${role === "error" ? "error" : "user"}`;
+        bubble.textContent = text;
+        bubbleRow.appendChild(bubble);
+
+        row.appendChild(bubbleRow);
+      }
+
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return row;
+    }
+
+    function addThinking() {
+      const now = new Date();
+      const isNewCluster = lastSender !== "assistant";
+
+      const row = document.createElement("div");
+      row.className = `msg-row ai-row ${isNewCluster ? "new-sender" : "same-sender"}`;
+      row.id = "thinkingRow";
+
+      if (isNewCluster) {
+        const avatar = document.createElement("div");
+        avatar.className = "avatar";
+        avatar.textContent = "🤖";
+        row.appendChild(avatar);
+      } else {
+        const ph = document.createElement("div");
+        ph.className = "avatar-placeholder";
+        row.appendChild(ph);
+      }
+
+      const col = document.createElement("div");
+      col.className = "bubble-col";
+
+      if (isNewCluster) {
+        const name = document.createElement("span");
+        name.className = "sender-name";
+        name.textContent = "AI 어시스턴트";
+        col.appendChild(name);
+      }
+
+      const bubbleRow = document.createElement("div");
+      bubbleRow.className = "bubble-row";
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble assistant";
+      bubble.innerHTML = '<span class="dot-pulse">● ● ●</span>';
+      bubbleRow.appendChild(bubble);
+
+      col.appendChild(bubbleRow);
+      row.appendChild(col);
+      messagesEl.appendChild(row);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function updateMemoryBadge() {
+      turnCount++;
+      memoryBadge.textContent = `대화 기록 유지 중 · ${turnCount}턴`;
+    }
+
+    async function send() {
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      inputEl.value = "";
+      inputEl.style.height = "auto";
+      sendBtn.disabled = true;
+
+      addMessage("user", text);
+      history.push({ role: "user", content: text });
+
+      addThinking();
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history }),
+        });
+        const data = await res.json();
+
+        const thinkingRow = document.getElementById("thinkingRow");
+        if (thinkingRow) thinkingRow.remove();
+
+        if (!res.ok) throw new Error(data.error || "서버 오류");
+
+        history.push({ role: "assistant", content: data.reply });
+        addMessage("assistant", data.reply);
+        updateMemoryBadge();
+
+      } catch (err) {
+        const thinkingRow = document.getElementById("thinkingRow");
+        if (thinkingRow) thinkingRow.remove();
+        lastSender = null; // 클러스터 리셋
+        addMessage("error", "오류: " + err.message);
+      } finally {
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", send);
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    inputEl.addEventListener("input", () => {
+      inputEl.style.height = "auto";
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + "px";
+    });
+
+    // 초기 인사말
+    addMessage("assistant", "안녕하세요! 무엇이든 물어보세요.\nShift+Enter로 줄바꿈, Enter로 전송합니다.");
+  </script>
+</body>
+</html>
